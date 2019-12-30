@@ -296,11 +296,15 @@
   <xsl:template match="marc:datafield[@tag='245']" mode="work">
     <xsl:param name="recordid"/>
     <xsl:param name="serialization" select="'rdfxml'"/>
-    <xsl:if test="not(../marc:datafield[@tag='130']) and not(../marc:datafield[@tag='240'])">
+    <!-- 
+        kefo note - 30 Dec 2019
+        Always output the 245 title for Works.
+    -->
+    <!-- <xsl:if test="not(../marc:datafield[@tag='130']) and not(../marc:datafield[@tag='240'])"> -->
       <xsl:apply-templates mode="work245" select=".">
         <xsl:with-param name="serialization" select="$serialization"/>
       </xsl:apply-templates>
-    </xsl:if>
+    <!-- </xsl:if> -->
   </xsl:template>
 
   <xsl:template match="marc:datafield[@tag='245' or @tag='880']" mode="work245">
@@ -309,7 +313,9 @@
     <xsl:variable name="label">
       <xsl:variable name="vLabelStr">
         <xsl:apply-templates mode="concat-nodes-space"
-                             select="marc:subfield[@code='a' or
+                             select="marc:subfield[
+                                     @code='a' or
+                                     @code='b' or
                                      @code='f' or 
                                      @code='g' or
                                      @code='k' or
@@ -337,7 +343,8 @@
             <xsl:with-param name="label" select="$label"/>
             <xsl:with-param name="serialization" select="$serialization"/>
             <xsl:with-param name="pStripNonfiling" select="true()"/>
-            <xsl:with-param name="pSubtitle" select="false()"/>
+            <!-- kefo note - Switched this to true. -->
+            <xsl:with-param name="pSubtitle" select="true()"/>
           </xsl:apply-templates>
         </bf:title>
         <xsl:for-each select="marc:subfield[@code='f' or @code='g']">
@@ -393,6 +400,7 @@
   </xsl:template>
   
   <!-- bf:Instance properties from MARC 245 -->
+  <!--
   <xsl:template match="marc:datafield[@tag='245']" mode="instance">
     <xsl:param name="recordid"/>
     <xsl:param name="serialization" select="'rdfxml'"/>
@@ -400,7 +408,8 @@
       <xsl:with-param name="serialization" select="$serialization"/>
     </xsl:apply-templates>
   </xsl:template>
-
+    -->
+    
   <xsl:template match="marc:datafield[@tag='245' or @tag='880']" mode="instance245">
     <xsl:param name="serialization"/>
     <xsl:variable name="vXmlLang"><xsl:apply-templates select="." mode="xmllang"/></xsl:variable>
@@ -479,6 +488,41 @@
             </rdfs:label>
             <bflc:titleSortKey><xsl:value-of select="substring(normalize-space($label),@ind2+1,(string-length(normalize-space($label))-@ind2))"/></bflc:titleSortKey>
           </xsl:if>
+          <!-- 
+            Note - kefo addition could be consolidated with /if/ block immediately
+            preceding this addition.
+          -->
+          <xsl:choose>
+              <xsl:when test="$label != ''">
+                  <!-- Ah, glorious simpleness. -->
+                  <xsl:if test="$vXmlLang != ''">
+                    <xsl:attribute name="xml:lang"><xsl:value-of select="$vXmlLang"/></xsl:attribute>
+                  </xsl:if>
+                  <bf:mainTitle><xsl:value-of select="normalize-space($label)"/></bf:mainTitle>
+              </xsl:when>
+              <xsl:otherwise>
+                  <xsl:variable name="label245">
+                    <xsl:variable name="vLabelStr">
+                        <xsl:apply-templates mode="concat-nodes-space"
+                             select="marc:subfield[
+                                     @code='a' or
+                                     @code='b' or
+                                     @code='n' or
+                                     @code='p']"/>
+                    </xsl:variable>
+                    <xsl:call-template name="chopPunctuation">
+                        <xsl:with-param name="punctuation" select="'/ '"/>
+                        <xsl:with-param name="chopString" select="$vLabelStr"/>
+                    </xsl:call-template>
+                  </xsl:variable>
+                  <bf:mainTitle><xsl:value-of select="normalize-space($label245)"/></bf:mainTitle>
+              </xsl:otherwise>
+          </xsl:choose>
+          <!--
+            kefo note - 30 Dec 2019
+            Disabled this.  Replaced with above simpleness.
+          -->
+          <!--
           <xsl:for-each select="marc:subfield[@code='a']">
             <bf:mainTitle>
               <xsl:if test="$vXmlLang != ''">
@@ -533,13 +577,14 @@
               </xsl:call-template>
             </bf:partName>
           </xsl:for-each>
+         -->
         </bf:Title>
       </xsl:when>
     </xsl:choose>
   </xsl:template>
 
   <!-- bf:Instance properties from MARC 246 -->
-  <xsl:template match="marc:datafield[@tag='246']" mode="instance">
+  <xsl:template match="marc:datafield[@tag='246']" mode="work">
     <xsl:param name="recordid"/>
     <xsl:param name="serialization" select="'rdfxml'"/>
     <xsl:apply-templates mode="instance246" select=".">
@@ -680,7 +725,7 @@
   </xsl:template>
 
   <!-- bf:Instance properties from MARC 247 -->
-  <xsl:template match="marc:datafield[@tag='247']" mode="instance">
+  <xsl:template match="marc:datafield[@tag='247']" mode="work">
     <xsl:param name="recordid"/>
     <xsl:param name="serialization" select="'rdfxml'"/>
     <xsl:apply-templates mode="instance247" select=".">

@@ -19,8 +19,10 @@
     <xsl:param name="serialization" select="'rdfxml'"/>
     <xsl:apply-templates mode="workUnifTitle" select=".">
       <xsl:with-param name="serialization" select="$serialization"/>
+      <xsl:with-param name="outputTitle" select="'false'"/>
     </xsl:apply-templates>
     <!-- create translationOf property and Work from uniform title if a translation -->
+    <!--
     <xsl:if test="marc:subfield[@code='l']">
       <xsl:variable name="vWorkUri">
         <xsl:apply-templates mode="generateUri" select=".">
@@ -33,6 +35,32 @@
           <bf:translationOf>
             <bf:Work>
               <xsl:attribute name="rdf:about"><xsl:value-of select="$vWorkUri"/></xsl:attribute>
+              
+              <!-/- 
+                kefo addition - 30 Dec 2019. 
+                Creating a Work for the "translation" without an Agent is not correct.
+                The "Work" is more than a Title.
+                If acceptable, this note will be removed.
+                Frankly, pending further discussion, I would altogether remove this "translationOf" block
+                in favor of the "expressionOf" block below.  Since this Expression, which may be a translation, will
+                link to the Hub representing the Translated Work.  Or something like that.
+                Actually, I commented it out altogether, for now, in favor of the below.
+              -/->
+              <xsl:if test="@tag='240'">
+                  <xsl:variable name="agent" select="../marc:datafield[@tag='100' or @tag='110' or @tag='111'][1]" />
+                  <xsl:variable name="agentiri">
+                    <xsl:apply-templates mode="generateUri" select="$agent">
+                        <!-/- Counting the number of preceding siblings and adding one feels hacky, but might it work reliably? -/->
+                        <xsl:with-param name="pDefaultUri"><xsl:value-of select="$recordid"/>#Agent<xsl:value-of select="$agent/@tag"/>-<xsl:value-of select="count($agent/preceding-sibling::marc:*) + 1"/></xsl:with-param>
+                        <xsl:with-param name="pEntity">bf:Agent</xsl:with-param>
+                    </xsl:apply-templates>
+                  </xsl:variable>
+                  <xsl:apply-templates mode="workName" select="$agent">
+                    <xsl:with-param name="agentiri" select="$agentiri"/>
+                    <xsl:with-param name="serialization" select="$serialization"/>
+                   </xsl:apply-templates>    
+              </xsl:if>
+              
               <xsl:apply-templates mode="workUnifTitle" select=".">
                 <xsl:with-param name="serialization" select="$serialization"/>
                 <xsl:with-param name="pTranslation">true</xsl:with-param>
@@ -42,6 +70,45 @@
         </xsl:when>
       </xsl:choose>
     </xsl:if>
+    -->
+    
+    
+    <xsl:choose>
+        <xsl:when test="$serialization='rdfxml'">
+            <xsl:variable name="vWorkUri">
+                <xsl:apply-templates mode="generateUri" select=".">
+                    <xsl:with-param name="pDefaultUri"><xsl:value-of select="$recordid"/>#Work<xsl:value-of select="@tag"/>-<xsl:value-of select="position()"/></xsl:with-param>
+                    <xsl:with-param name="pEntity">bf:Work</xsl:with-param>
+                </xsl:apply-templates>
+            </xsl:variable>
+          <bf:expressionOf>
+            <bf:Work>
+              <xsl:attribute name="rdf:about"><xsl:value-of select="$vWorkUri"/></xsl:attribute>
+              
+              <xsl:if test="@tag='240' and count(../marc:datafield[@tag='100' or @tag='110' or @tag='111']) > 0">
+                  <xsl:variable name="agent" select="../marc:datafield[@tag='100' or @tag='110' or @tag='111'][1]" />
+                  <xsl:variable name="agentiri">
+                    <xsl:apply-templates mode="generateUri" select="$agent">
+                        <!-- Counting the number of preceding siblings and adding one feels hacky, but might it work reliably? -->
+                        <xsl:with-param name="pDefaultUri"><xsl:value-of select="$recordid"/>#Agent<xsl:value-of select="$agent/@tag"/>-<xsl:value-of select="count($agent/preceding-sibling::marc:*) + 1"/></xsl:with-param>
+                        <xsl:with-param name="pEntity">bf:Agent</xsl:with-param>
+                    </xsl:apply-templates>
+                  </xsl:variable>
+                  <xsl:apply-templates mode="workName" select="$agent">
+                    <xsl:with-param name="agentiri" select="$agentiri"/>
+                    <xsl:with-param name="serialization" select="$serialization"/>
+                   </xsl:apply-templates>    
+              </xsl:if>
+              
+              <xsl:apply-templates mode="workUnifTitle" select=".">
+                <xsl:with-param name="serialization" select="$serialization"/>
+                <xsl:with-param name="pTranslation">false</xsl:with-param>
+              </xsl:apply-templates>
+            </bf:Work>
+          </bf:expressionOf>
+        </xsl:when>
+      </xsl:choose>
+
   </xsl:template>
 
   <xsl:template match="marc:datafield[@tag='630']" mode="work">
@@ -317,6 +384,7 @@
   <xsl:template match="marc:datafield" mode="workUnifTitle">
     <xsl:param name="serialization" select="'rdfxml'"/>
     <xsl:param name="pTranslation"/>
+    <xsl:param name="outputTitle" select="'true'"/>
     <xsl:variable name="tag">
       <xsl:choose>
         <xsl:when test="@tag=880">
@@ -338,7 +406,14 @@
     </xsl:variable>
     <xsl:choose>
       <xsl:when test="$serialization = 'rdfxml'">
-        <xsl:if test="$label != ''">
+          <!-- 
+            kefo note - 30 Dec 2019
+            I'm leaving rdfs:label alone for now, but I don't think it has much
+            purpose at this stage.  Also, using the 240 title as THE label - without 
+            any reference to a contributor when there is one - does not make for a 
+            suitable label
+          -->
+        <xsl:if test="$label != '' and $outputTitle = 'true'">
           <rdfs:label>
             <xsl:if test="$vXmlLang != ''">
               <xsl:attribute name="xml:lang"><xsl:value-of select="$vXmlLang"/></xsl:attribute>
@@ -346,12 +421,19 @@
             <xsl:value-of select="normalize-space($label)"/>
           </rdfs:label>
         </xsl:if>
-        <bf:title>
-          <xsl:apply-templates mode="titleUnifTitle" select=".">
-            <xsl:with-param name="serialization" select="$serialization"/>
-            <xsl:with-param name="label" select="$label"/>
-          </xsl:apply-templates>
-        </bf:title>
+        <!-- 
+            kefo note - 30 Dec 2019
+            "outputTitle" defaults to true because you want it most of the 
+            time when dealing with uniform titles.
+        -->
+        <xsl:if test="$outputTitle = 'true'">
+            <bf:title>
+              <xsl:apply-templates mode="titleUnifTitle" select=".">
+                <xsl:with-param name="serialization" select="$serialization"/>
+                <xsl:with-param name="label" select="$label"/>
+              </xsl:apply-templates>
+            </bf:title>
+        </xsl:if>
         <xsl:choose>
           <xsl:when test="substring($tag,2,2='10')">
             <xsl:for-each select="marc:subfield[@code='t']/following-sibling::marc:subfield[@code='d']">
@@ -698,6 +780,13 @@
             <bflc:titleSortKey><xsl:value-of select="normalize-space(substring($label,$nfi+1))"/></bflc:titleSortKey>
           </xsl:if>
           <xsl:choose>
+            <!-- 
+                kefo note - 30 Dec 2019
+                Cut to the chase.
+            -->
+            <xsl:when test="$label != ''">
+                <bf:mainTitle><xsl:value-of select="normalize-space($label)"/></bf:mainTitle>
+            </xsl:when>
             <xsl:when test="substring($tag,2,2)='30' or substring($tag,2,2)='40'">
               <xsl:for-each select="marc:subfield[@code='a']">
                 <bf:mainTitle>
@@ -727,6 +816,11 @@
               </xsl:for-each>
             </xsl:otherwise>
           </xsl:choose>
+          <!-- 
+            kefo note - 30 Dec 2019
+            Disabled this.  Too much noise.
+          -->
+          <!--
           <xsl:choose>
             <xsl:when test="substring($tag,2,2) = '11'">
               <xsl:for-each select="marc:subfield[@code='t']/following-sibling::marc:subfield[@code='n']">
@@ -769,6 +863,7 @@
               </xsl:call-template>
             </bf:partName>
           </xsl:for-each>
+          -->
         </bf:Title>
       </xsl:when>
     </xsl:choose>

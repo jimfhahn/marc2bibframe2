@@ -56,6 +56,12 @@
               <rdf:type>
                 <xsl:attribute name="rdf:resource"><xsl:value-of select="concat($bf,'Electronic')"/></xsl:attribute>
               </rdf:type>
+              <!--
+                kefo note - 30 Dec 2019
+                When dealing with an 856, it's not clear what a good "label" would be.
+                It's probably not the "title" of the Work/Expression, but I'm not 
+                going to wade into this water right now.
+              -->
               <xsl:if test="../marc:datafield[@tag='245']">
                 <bf:title>
                   <xsl:apply-templates mode="title245" select="../marc:datafield[@tag='245']">
