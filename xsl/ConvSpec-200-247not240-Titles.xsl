@@ -395,6 +395,28 @@
             </xsl:call-template>
           </bf:version>
         </xsl:for-each>
+        <!-- 
+            kefo note - 31 Dec 2019
+            Moved responsibility statement from Instance.
+            This is a violation of the ontology.  
+            An argument that this is an often transcribed data point might be in favor
+            of making it an Instance-level property, it details who all were involved
+            in the /creation/ of the Thing, or in this case the Work.  
+            The publisher "created" the Instance.
+        -->
+        <xsl:for-each select="marc:subfield[@code='c']">
+          <bf:responsibilityStatement>
+            <xsl:if test="$vXmlLang != ''">
+              <xsl:attribute name="xml:lang"><xsl:value-of select="$vXmlLang"/></xsl:attribute>
+            </xsl:if>
+            <xsl:call-template name="chopPunctuation">
+              <xsl:with-param name="punctuation" select="'=.:,;/ '"/>
+              <xsl:with-param name="chopString">
+                <xsl:value-of select="."/>
+              </xsl:with-param>
+            </xsl:call-template>
+          </bf:responsibilityStatement>
+        </xsl:for-each>
       </xsl:when>
     </xsl:choose>
   </xsl:template>
@@ -493,12 +515,14 @@
             preceding this addition.
           -->
           <xsl:choose>
+              <!-- Ah, glorious simpleness. -->
               <xsl:when test="$label != ''">
-                  <!-- Ah, glorious simpleness. -->
-                  <xsl:if test="$vXmlLang != ''">
-                    <xsl:attribute name="xml:lang"><xsl:value-of select="$vXmlLang"/></xsl:attribute>
-                  </xsl:if>
-                  <bf:mainTitle><xsl:value-of select="normalize-space($label)"/></bf:mainTitle>
+                  <bf:mainTitle>
+                    <xsl:if test="$vXmlLang != ''">
+                        <xsl:attribute name="xml:lang"><xsl:value-of select="$vXmlLang"/></xsl:attribute>
+                    </xsl:if>
+                    <xsl:value-of select="normalize-space($label)"/>
+                  </bf:mainTitle>
               </xsl:when>
               <xsl:otherwise>
                   <xsl:variable name="label245">
