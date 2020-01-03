@@ -326,6 +326,17 @@
   </xsl:template>
 
   <!--
+      Simple normalization
+      Remove spaces, force everything to lowercase, ignore any other punctuation.
+  -->
+  <xsl:template name="simpleNormalization">
+    <xsl:param name="sString"/>
+    <xsl:variable name="uppercase" select="'ABCDEFGHIJKLMNOPQRSTUVWXYZ '" />
+    <xsl:variable name="lowercase" select="'abcdefghijklmnopqrstuvwxyz'" />
+    <xsl:value-of select="translate($sString, $uppercase, $lowercase)" />
+  </xsl:template>
+
+  <!--
       generate a property with a blank node Resource, and an rdfs:label
       process $3 and $2, if necessary
       Inspired by processing 340, may be useful elsewhere (actually
